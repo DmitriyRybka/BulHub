@@ -1,0 +1,135 @@
+/* Буль-Хаб: глубоководная тёмная тема.
+   Палитра: чернильная глубина, фиолетовая подсветка, бирюзовые «пузырьки». */
+:root {
+  --depth: #120e1c;        /* фон — придонная чернота с фиолетовым отливом */
+  --water: #1c1630;        /* панели */
+  --water-2: #251d40;      /* панели при наведении / вложенные */
+  --line: #352a5c;         /* границы */
+  --ink: #ece8fa;          /* основной текст */
+  --ink-dim: #9c93bf;      /* вторичный текст */
+  --violet: #8b7cf6;       /* главный акцент */
+  --bubble: #5ee1d4;       /* бирюзовый пузырёк — успех/деньги-в-плюс */
+  --coral: #f6799b;        /* предупреждения/минус */
+  --radius: 14px;
+  font-family: "Rubik", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(139, 124, 246, 0.14), transparent 60%),
+    radial-gradient(900px 500px at -10% 100%, rgba(94, 225, 212, 0.07), transparent 55%),
+    var(--depth);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+h1, h2, h3 { font-family: "Unbounded", "Rubik", sans-serif; letter-spacing: -0.01em; }
+h1 { font-size: 1.5rem; font-weight: 700; }
+h2 { font-size: 1.1rem; font-weight: 500; }
+
+a { color: var(--violet); text-decoration: none; }
+
+/* --- каркас --- */
+.shell { max-width: 1080px; margin: 0 auto; padding: 0 20px 60px; }
+
+.topbar {
+  display: flex; align-items: center; gap: 28px;
+  padding: 18px 0; margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.logo {
+  font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1.05rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.logo .bubbles { color: var(--bubble); font-size: 0.8rem; letter-spacing: 2px; }
+
+.nav { display: flex; gap: 6px; flex: 1; }
+.nav a {
+  color: var(--ink-dim); padding: 8px 14px; border-radius: 999px;
+  font-weight: 500; transition: color 0.15s, background 0.15s;
+}
+.nav a:hover { color: var(--ink); }
+.nav a.active { color: var(--ink); background: var(--water-2); }
+
+/* --- панели и сетки --- */
+.card {
+  background: var(--water); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 20px;
+}
+.grid { display: grid; gap: 16px; }
+.grid.two { grid-template-columns: 1fr 1fr; }
+.grid.side { grid-template-columns: 260px 1fr; }
+@media (max-width: 760px) {
+  .grid.two, .grid.side { grid-template-columns: 1fr; }
+}
+
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.spread { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.muted { color: var(--ink-dim); font-size: 0.9rem; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* --- формы --- */
+input, select, button, textarea {
+  font: inherit; color: var(--ink);
+  background: var(--depth); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 12px;
+}
+input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--violet); outline-offset: 1px;
+}
+label { font-size: 0.85rem; color: var(--ink-dim); display: block; margin-bottom: 4px; }
+
+button { cursor: pointer; background: var(--water-2); transition: filter 0.15s; }
+button:hover { filter: brightness(1.15); }
+button.primary { background: var(--violet); color: #14101f; font-weight: 600; border-color: transparent; }
+button.ghost { background: transparent; border-color: transparent; color: var(--ink-dim); }
+button.ghost:hover { color: var(--coral); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+/* --- бейджи, статусы --- */
+.badge {
+  font-size: 0.72rem; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--ink-dim); white-space: nowrap;
+}
+.badge.owner  { color: var(--violet); border-color: var(--violet); }
+.badge.editor { color: var(--bubble); border-color: var(--bubble); }
+.plus  { color: var(--bubble); }
+.minus { color: var(--coral); }
+
+/* --- список событий/операций --- */
+.item {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: 10px; background: var(--depth);
+  border: 1px solid var(--line);
+}
+.item:hover { background: var(--water-2); }
+
+.daylabel {
+  font-family: "Unbounded", sans-serif; font-size: 0.78rem; font-weight: 500;
+  color: var(--bubble); margin: 14px 0 6px; text-transform: capitalize;
+}
+
+/* --- бюджетные полосы --- */
+.bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 6px; }
+.bar > div { height: 100%; background: var(--bubble); border-radius: 999px; }
+.bar > div.over { background: var(--coral); }
+
+/* --- тудушки --- */
+.todo { display: flex; gap: 10px; align-items: center; }
+.todo.done .title { text-decoration: line-through; color: var(--ink-dim); }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.todo  { background: var(--ink-dim); }
+.status-dot.doing { background: var(--violet); }
+.status-dot.done  { background: var(--bubble); }
+
+/* --- логин --- */
+.auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.auth-card { width: 100%; max-width: 400px; }
+.error { color: var(--coral); font-size: 0.88rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
