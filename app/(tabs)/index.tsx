@@ -1,98 +1,77 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, TextInput, Pressable, FlatList, StyleSheet } from "react-native";
+import { router } from "expo-router";
+import { api, getToken } from "../../lib/api";
+import { C, F } from "../../constants/ui";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+type TodoList = { id: number; name: string };
+type Item = { id: number; title: string; status: "todo" | "doing" | "done" };
+const NEXT = { todo: "doing", doing: "done", done: "todo" } as const;
+const DOT = { todo: C.muted, doing: C.accent, done: C.good } as const;
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+export default function Todos() {
+  const [listId, setListId] = useState<number | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
+  const [title, setTitle] = useState("");
+  const [hideDone, setHideDone] = useState(false);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const load = useCallback(async () => {
+    if (!(await getToken())) { router.replace("/login"); return; }
+    const lists = await api<TodoList[]>("/todos/lists");
+    if (!lists.length) return;
+    setListId(lists[0].id);
+    setItems(await api<Item[]>(`/todos/lists/${lists[0].id}/items`));
+  }, []);
+
+  useEffect(() => { load().catch(() => router.replace("/login")); }, [load]);
+
+  async function add() {
+    if (!title.trim() || !listId) return;
+    await api(`/todos/lists/${listId}/items`, { method: "POST", body: { title } });
+    setTitle("");
+    setItems(await api<Item[]>(`/todos/lists/${listId}/items`));
+  }
+
+  async function toggle(item: Item) {
+    await api(`/todos/items/${item.id}`, { method: "PATCH", body: { status: NEXT[item.status] } });
+    setItems(await api<Item[]>(`/todos/lists/${listId}/items`));
+  }
+
+return (
+    <SafeAreaView style={s.wrap} edges={["top"]}>
+      <View style={s.row}>
+        <TextInput style={[s.input, { flex: 1 }]} placeholder="Новая задача"
+          placeholderTextColor={C.muted} value={title} onChangeText={setTitle} />
+        <Pressable style={s.btn} onPress={add}><Text style={s.btnText}>+</Text></Pressable>
+      </View>
+      <Pressable style={s.filterBtn} onPress={() => setHideDone(!hideDone)}>
+        <Text style={s.filterText}>{hideDone ? "Показать все" : "Скрыть выполненные"}</Text>
+      </Pressable>
+      <FlatList
+        data={hideDone ? items.filter((i) => i.status !== "done") : items}
+        keyExtractor={(i) => String(i.id)}
+        renderItem={({ item }) => (
+          <Pressable style={s.item} onPress={() => toggle(item)}>
+            <View style={[s.dot, { backgroundColor: DOT[item.status] }]} />
+            <Text style={[s.title, item.status === "done" && s.done]}>{item.title}</Text>
+          </Pressable>
+        )}
+      />
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+const s = StyleSheet.create({
+  wrap: { flex: 1, backgroundColor: C.bg, padding: 16, gap: 10, width: "100%", maxWidth: 560, alignSelf: "center" },
+  row: { flexDirection: "row", gap: 8 },
+  input: { backgroundColor: C.surface, color: C.text, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: F.regular, borderWidth: 1, borderColor: C.border },
+  btn: { backgroundColor: C.accent, borderRadius: 10, paddingHorizontal: 16, justifyContent: "center" },
+  btnText: { color: C.onAccent, fontSize: 18, fontFamily: F.bold },
+  item: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.surface, borderRadius: 10, padding: 13, marginBottom: 8, borderWidth: 1, borderColor: C.border },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  title: { color: C.text, flex: 1, fontSize: 14, fontFamily: F.regular },
+  done: { textDecorationLine: "line-through", color: C.muted },
+  filterBtn: { alignSelf: "flex-start", backgroundColor: C.surface, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: C.border },
+  filterText: { color: C.muted, fontSize: 12, fontFamily: F.medium },
 });
