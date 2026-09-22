@@ -1,42 +1,53 @@
 import { useEffect, useRef } from "react";
-import {
-  View, Text, TextInput, Pressable, KeyboardAvoidingView, BackHandler, Keyboard, StyleSheet,
-} from "react-native";
+import { View, Text, TextInput, Pressable, BackHandler, Keyboard, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { FadeIn, SlideInDown, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import Animated, {
+  FadeIn, SlideInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming,
+} from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { Ionicons } from "@expo/vector-icons";
 import { C, F } from "../constants/ui";
 
-// Ручка внизу экрана «Дела»: свайп вверх (или тап) открывает шторку новой задачи.
-// Отдельная ручка, а не свайп по списку: вертикальный жест по списку — это прокрутка.
+// Стрелка внизу экрана «Дела»: свайп вверх (или тап) открывает шторку новой задачи.
+// Отдельная зона, а не свайп по списку: вертикальный жест по списку — это прокрутка.
 export function QuickAddHandle({ onOpen }: { onOpen: () => void }) {
-  const y = useSharedValue(0);
+  const drag = useSharedValue(0);
+  const hint = useSharedValue(0);
+
+  // при первом показе стрелка трижды подпрыгивает — подсказка «тяни вверх»;
+  // дальше стоит спокойно, чтобы не отвлекать
+  useEffect(() => {
+    hint.set(withRepeat(withSequence(
+      withTiming(-6, { duration: 260 }),
+      withTiming(0, { duration: 260 }),
+    ), 3));
+  }, [hint]);
 
   const pan = Gesture.Pan()
     .activeOffsetY([-8, 8])
     .failOffsetX([-15, 15])  // горизонтальное движение — не наш жест
     .onUpdate((e) => {
       "worklet";
-      // ручка тянется за пальцем с сопротивлением, но недалеко
-      y.set(Math.max(-28, Math.min(0, e.translationY * 0.5)));
+      // стрелка едет за пальцем с сопротивлением, но недалеко
+      drag.set(Math.max(-32, Math.min(0, e.translationY * 0.5)));
     })
     .onEnd((e) => {
       "worklet";
       if (e.translationY < -24 || e.velocityY < -400) scheduleOnRN(onOpen);
-      y.set(withSpring(0, { damping: 18, stiffness: 260 }));
+      drag.set(withSpring(0, { damping: 18, stiffness: 260 }));
     });
 
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.get() }] }));
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: drag.get() + hint.get() }] }));
 
   return (
     <GestureDetector gesture={pan}>
-      <Animated.View style={[s.handleWrap, style]}>
-        <Pressable style={s.handle} onPress={onOpen} accessibilityRole="button" accessibilityLabel="Новая задача">
-          <Ionicons name="chevron-up" size={16} color={C.accent} />
-          <Text style={s.handleText}>Новая задача</Text>
-        </Pressable>
-      </Animated.View>
+      {/* зона захвата шире самой стрелки — чтобы легко попасть пальцем */}
+      <Pressable style={s.handleZone} onPress={onOpen} accessibilityRole="button" accessibilityLabel="Новая задача">
+        <Animated.View style={style}>
+          <Ionicons name="chevron-up" size={30} color={C.accent} />
+        </Animated.View>
+      </Pressable>
     </GestureDetector>
   );
 }
@@ -59,9 +70,12 @@ type SheetProps = {
 };
 
 // Не Modal, а слой поверх экрана: у Modal на Android с edge-to-edge окно не
-// ужимается под клавиатуру, и шторка оказалась бы под ней. Здесь её поднимает
-// KeyboardAvoidingView — он считает отступ от своей рамки, так что высоту
-// панели вкладок снизу учитывать не нужно.
+// ужимается под клавиатуру, и шторка оказалась бы под ней.
+// Над клавиатурой её держит KeyboardAvoidingView из react-native-keyboard-controller,
+// а не из RN: встроенный меряет себя в координатах родителя, а клавиатуру — в
+// координатах экрана, и на Android шторка вставала криво. automaticOffset берёт
+// настоящую позицию на экране, так что панель вкладок снизу учтётся сама; и
+// шторка едет вместе с клавиатурой кадр в кадр, а не прыгает.
 export function QuickAddSheet(p: SheetProps) {
   const input = useRef<TextInput>(null);
 
@@ -105,7 +119,7 @@ export function QuickAddSheet(p: SheetProps) {
   }
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={s.overlay}>
+    <KeyboardAvoidingView behavior="padding" automaticOffset style={s.overlay}>
       <Animated.View entering={FadeIn.duration(150)} style={StyleSheet.absoluteFill}>
         <Pressable style={s.backdrop} onPress={p.onClose} accessibilityLabel="Закрыть" />
       </Animated.View>
@@ -169,14 +183,9 @@ function Chip({ icon, label, active, onPress, onClear }: {
 }
 
 const s = StyleSheet.create({
-  // справа оставляем место под круглую кнопку-рыбку
-  handleWrap: { position: "absolute", left: 16, right: 84, bottom: 16 },
-  handle: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-    paddingVertical: 12, borderRadius: 14, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.border,
-  },
-  handleText: { color: C.text, fontSize: 14, fontFamily: F.semibold },
+  // по центру экрана, на одной высоте с кнопкой-рыбкой; отступы по бокам
+  // одинаковые (под ширину рыбки), чтобы стрелка стояла ровно посередине
+  handleZone: { position: "absolute", left: 84, right: 84, bottom: 24, height: 50, alignItems: "center", justifyContent: "center" },
 
   overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "flex-end" },
   backdrop: { flex: 1, backgroundColor: "rgba(8, 6, 14, 0.6)" },
