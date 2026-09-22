@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, FlatList, Platform, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { api, ApiError, getToken, setToken } from "../../lib/api";
 import { C, F } from "../../constants/ui";
@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { DatePickerModal } from "../../components/date-picker-modal";
 import { ReminderModal } from "../../components/reminder-modal";
 import { SwipeRow } from "../../components/swipe-row";
+import { QuickAddHandle, QuickAddSheet } from "../../components/quick-add";
 import { dateTimeLabel, daysBetween, parseUtc, shortDay, todayKey } from "../../lib/dates";
 import { ensurePermission, syncReminders } from "../../lib/reminders";
 
@@ -25,6 +26,9 @@ type Picker = { kind: "due" | "remind"; item: Item | null }; // item = null — 
 // Тап по выполненной (видна при «Показать выполненные») возвращает её в работу.
 const TAP_NEXT = { todo: "doing", doing: "todo", done: "todo" } as const;
 const UNDO_MS = 4000;
+// На телефоне новая задача вводится из шторки снизу (свайп вверх по ручке) —
+// до поля вверху экрана большим пальцем не дотянуться. В вебе остаётся поле сверху.
+const PHONE = Platform.OS !== "web";
 const DOT = { todo: C.muted, doing: C.accent, done: C.good } as const;
 
 // Просрочено — красным, сегодня/завтра — акцентом, остальное приглушённо
@@ -53,6 +57,7 @@ export default function Todos() {
   const [picker, setPicker] = useState<Picker | null>(null);
   // последняя смахнутая задача (с прежним статусом) — для кнопки «Отменить»
   const [undo, setUndo] = useState<Item | null>(null);
+  const [quickOpen, setQuickOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!(await getToken())) { router.replace("/login"); return; }
@@ -89,10 +94,11 @@ export default function Todos() {
     if (listId != null) setItems(await api<Item[]>(`/todos/lists/${listId}/items`));
   };
 
-  async function add() {
+  // true — задача добавлена (шторка по этому сигналу закрывается)
+  async function add(): Promise<boolean> {
     const text = title.trim();
-    if (!text || busy) return;
-    if (!listId) { setError("Нет списка дел — создай его в веб-версии"); return; }
+    if (!text || busy) return false;
+    if (!listId) { setError("Нет списка дел — создай его в веб-версии"); return false; }
     setBusy(true);
     setError("");
     try {
@@ -108,8 +114,10 @@ export default function Todos() {
       setDraftDue(null);
       setDraftRemind(null);
       await reload();
+      return true;
     } catch (e) {
       await fail(e);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -173,137 +181,164 @@ export default function Todos() {
       : (picker.item ? picker.item.remind_at : draftRemind);
 
   return (
-    <SafeAreaView style={s.wrap} edges={["top"]}>
-      <View style={s.row}>
-        <TextInput style={[s.input, { flex: 1, minWidth: 0 }]} placeholder="Новая задача"
-          placeholderTextColor={C.muted} value={title} onChangeText={setTitle}
-          onSubmitEditing={add} returnKeyType="done" submitBehavior="submit" />
-        <Pressable style={[s.iconBtn, !!draftDue && s.iconBtnActive]} onPress={() => setPicker({ kind: "due", item: null })}>
-          <Ionicons name="calendar-outline" size={18} color={draftDue ? C.onAccent : C.muted} />
-        </Pressable>
-        <Pressable style={[s.iconBtn, !!draftRemind && s.iconBtnActive]} onPress={() => setPicker({ kind: "remind", item: null })}>
-          <Ionicons name="alarm-outline" size={18} color={draftRemind ? C.onAccent : C.muted} />
-        </Pressable>
-        <Pressable style={[s.btn, busy && s.btnBusy]} onPress={add} disabled={busy}>
-          <Text style={s.btnText}>+</Text>
-        </Pressable>
-      </View>
+    <View style={s.root}>
+      <SafeAreaView style={s.wrap} edges={["top"]}>
+        {PHONE && <Text style={s.h1}>Дела</Text>}
+        {!PHONE && (<>
+          <View style={s.row}>
+            <TextInput style={[s.input, { flex: 1, minWidth: 0 }]} placeholder="Новая задача"
+              placeholderTextColor={C.muted} value={title} onChangeText={setTitle}
+              onSubmitEditing={add} returnKeyType="done" submitBehavior="submit" />
+            <Pressable style={[s.iconBtn, !!draftDue && s.iconBtnActive]} onPress={() => setPicker({ kind: "due", item: null })}>
+              <Ionicons name="calendar-outline" size={18} color={draftDue ? C.onAccent : C.muted} />
+            </Pressable>
+            <Pressable style={[s.iconBtn, !!draftRemind && s.iconBtnActive]} onPress={() => setPicker({ kind: "remind", item: null })}>
+              <Ionicons name="alarm-outline" size={18} color={draftRemind ? C.onAccent : C.muted} />
+            </Pressable>
+            <Pressable style={[s.btn, busy && s.btnBusy]} onPress={add} disabled={busy}>
+              <Text style={s.btnText}>+</Text>
+            </Pressable>
+          </View>
 
-      {(!!draftDue || !!draftRemind) && (
-        <View style={s.draftRow}>
-          {!!draftDue && (
-            <View style={s.draftChip}>
-              <Ionicons name="calendar-outline" size={12} color={C.accent} />
-              <Text style={s.draftText}>{shortDay(draftDue)}</Text>
-              <Pressable onPress={() => setDraftDue(null)} hitSlop={8}>
-                <Ionicons name="close" size={13} color={C.muted} />
-              </Pressable>
+          {(!!draftDue || !!draftRemind) && (
+            <View style={s.draftRow}>
+              {!!draftDue && (
+                <View style={s.draftChip}>
+                  <Ionicons name="calendar-outline" size={12} color={C.accent} />
+                  <Text style={s.draftText}>{shortDay(draftDue)}</Text>
+                  <Pressable onPress={() => setDraftDue(null)} hitSlop={8}>
+                    <Ionicons name="close" size={13} color={C.muted} />
+                  </Pressable>
+                </View>
+              )}
+              {!!draftRemind && (
+                <View style={s.draftChip}>
+                  <Ionicons name="alarm-outline" size={12} color={C.accent} />
+                  <Text style={s.draftText}>{dateTimeLabel(parseUtc(draftRemind))}</Text>
+                  <Pressable onPress={() => setDraftRemind(null)} hitSlop={8}>
+                    <Ionicons name="close" size={13} color={C.muted} />
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
-          {!!draftRemind && (
-            <View style={s.draftChip}>
-              <Ionicons name="alarm-outline" size={12} color={C.accent} />
-              <Text style={s.draftText}>{dateTimeLabel(parseUtc(draftRemind))}</Text>
-              <Pressable onPress={() => setDraftRemind(null)} hitSlop={8}>
-                <Ionicons name="close" size={13} color={C.muted} />
-              </Pressable>
-            </View>
-          )}
-        </View>
-      )}
+        </>)}
 
-      {!!error && <Text style={s.error}>{error}</Text>}
-      {(doneCount > 0 || !hideDone) && (
-        <Pressable style={s.filterBtn} onPress={() => setHideDone(!hideDone)}>
-          <Text style={s.filterText}>
-            {hideDone ? `Показать выполненные (${doneCount})` : "Скрыть выполненные"}
-          </Text>
-        </Pressable>
-      )}
-
-      <FlatList
-        data={hideDone ? items.filter((i) => i.status !== "done") : items}
-        // статус в ключе: после смены статуса строка монтируется заново,
-        // и уехавшая за край после свайпа не остаётся невидимой
-        keyExtractor={(i) => `${i.id}-${i.status}`}
-        ListEmptyComponent={
-          items.length ? <Text style={s.empty}>Всё сделано 🎉</Text> : <Text style={s.empty}>Задач пока нет</Text>
-        }
-        contentContainerStyle={{ paddingBottom: 110 }}
-        renderItem={({ item }) => {
-          const done = item.status === "done";
-          return (
-            <SwipeRow enabled={!done} onSwipe={() => complete(item)}>
-              <View style={s.item}>
-                <Pressable style={s.itemMain} onPress={() => setStatus(item, TAP_NEXT[item.status])}>
-                  <View style={[s.dot, { backgroundColor: DOT[item.status] }]} />
-                  <View style={s.itemText}>
-                    <Text style={[s.title, done && s.done]}>{item.title}</Text>
-                    {(!!item.due_date || !!item.remind_at) && (
-                      <View style={s.meta}>
-                        {!!item.due_date && (
-                          <Text style={[s.metaText, { color: dueColor(item.due_date, done) }]}>
-                            {shortDay(item.due_date)}
-                          </Text>
-                        )}
-                        {!!item.remind_at && (
-                          <View style={s.metaRemind}>
-                            <Ionicons name="alarm-outline" size={12} color={remindColor(item.remind_at, done)} />
-                            <Text style={[s.metaText, { color: remindColor(item.remind_at, done) }]}>
-                              {dateTimeLabel(parseUtc(item.remind_at))}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                </Pressable>
-                <Pressable style={s.sideBtn} onPress={() => setPicker({ kind: "due", item })} hitSlop={4}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={18}
-                    color={item.due_date ? dueColor(item.due_date, done) : C.border}
-                  />
-                </Pressable>
-                <Pressable style={[s.sideBtn, s.sideBtnLast]} onPress={() => setPicker({ kind: "remind", item })} hitSlop={4}>
-                  <Ionicons
-                    name="alarm-outline"
-                    size={18}
-                    color={item.remind_at ? remindColor(item.remind_at, done) : C.border}
-                  />
-                </Pressable>
-              </View>
-            </SwipeRow>
-          );
-        }}
-      />
-
-      {!!undo && (
-        <View style={s.toast}>
-          <Text style={s.toastText} numberOfLines={1}>Выполнено: {undo.title}</Text>
-          <Pressable onPress={undoComplete} hitSlop={8}>
-            <Text style={s.toastAction}>Отменить</Text>
+        {!!error && <Text style={s.error}>{error}</Text>}
+        {(doneCount > 0 || !hideDone) && (
+          <Pressable style={s.filterBtn} onPress={() => setHideDone(!hideDone)}>
+            <Text style={s.filterText}>
+              {hideDone ? `Показать выполненные (${doneCount})` : "Скрыть выполненные"}
+            </Text>
           </Pressable>
-        </View>
-      )}
+        )}
 
-      <DatePickerModal
-        visible={picker?.kind === "due"}
-        value={pickerValue}
-        onChange={onPicked}
-        onClose={() => setPicker(null)}
-      />
-      <ReminderModal
-        visible={picker?.kind === "remind"}
-        value={pickerValue}
-        onChange={onPicked}
-        onClose={() => setPicker(null)}
-      />
-    </SafeAreaView>
+        <FlatList
+          data={hideDone ? items.filter((i) => i.status !== "done") : items}
+          // статус в ключе: после смены статуса строка монтируется заново,
+          // и уехавшая за край после свайпа не остаётся невидимой
+          keyExtractor={(i) => `${i.id}-${i.status}`}
+          ListEmptyComponent={
+            items.length ? <Text style={s.empty}>Всё сделано 🎉</Text> : <Text style={s.empty}>Задач пока нет</Text>
+          }
+          contentContainerStyle={{ paddingBottom: 110 }}
+          renderItem={({ item }) => {
+            const done = item.status === "done";
+            return (
+              <SwipeRow enabled={!done} onSwipe={() => complete(item)}>
+                <View style={s.item}>
+                  <Pressable style={s.itemMain} onPress={() => setStatus(item, TAP_NEXT[item.status])}>
+                    <View style={[s.dot, { backgroundColor: DOT[item.status] }]} />
+                    <View style={s.itemText}>
+                      <Text style={[s.title, done && s.done]}>{item.title}</Text>
+                      {(!!item.due_date || !!item.remind_at) && (
+                        <View style={s.meta}>
+                          {!!item.due_date && (
+                            <Text style={[s.metaText, { color: dueColor(item.due_date, done) }]}>
+                              {shortDay(item.due_date)}
+                            </Text>
+                          )}
+                          {!!item.remind_at && (
+                            <View style={s.metaRemind}>
+                              <Ionicons name="alarm-outline" size={12} color={remindColor(item.remind_at, done)} />
+                              <Text style={[s.metaText, { color: remindColor(item.remind_at, done) }]}>
+                                {dateTimeLabel(parseUtc(item.remind_at))}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  </Pressable>
+                  <Pressable style={s.sideBtn} onPress={() => setPicker({ kind: "due", item })} hitSlop={4}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color={item.due_date ? dueColor(item.due_date, done) : C.border}
+                    />
+                  </Pressable>
+                  <Pressable style={[s.sideBtn, s.sideBtnLast]} onPress={() => setPicker({ kind: "remind", item })} hitSlop={4}>
+                    <Ionicons
+                      name="alarm-outline"
+                      size={18}
+                      color={item.remind_at ? remindColor(item.remind_at, done) : C.border}
+                    />
+                  </Pressable>
+                </View>
+              </SwipeRow>
+            );
+          }}
+        />
+
+        {!!undo && (
+          <View style={s.toast}>
+            <Text style={s.toastText} numberOfLines={1}>Выполнено: {undo.title}</Text>
+            <Pressable onPress={undoComplete} hitSlop={8}>
+              <Text style={s.toastAction}>Отменить</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <DatePickerModal
+          visible={picker?.kind === "due"}
+          value={pickerValue}
+          onChange={onPicked}
+          onClose={() => setPicker(null)}
+        />
+        <ReminderModal
+          visible={picker?.kind === "remind"}
+          value={pickerValue}
+          onChange={onPicked}
+          onClose={() => setPicker(null)}
+        />
+      </SafeAreaView>
+
+      {PHONE && !quickOpen && <QuickAddHandle onOpen={() => setQuickOpen(true)} />}
+      {PHONE && (
+        <QuickAddSheet
+          visible={quickOpen}
+          paused={!!picker}
+          title={title}
+          onChangeTitle={(t) => { setTitle(t); setError(""); }}
+          onSubmit={add}
+          onClose={() => setQuickOpen(false)}
+          busy={busy}
+          error={error}
+          dueLabel={draftDue ? shortDay(draftDue) : null}
+          remindLabel={draftRemind ? dateTimeLabel(parseUtc(draftRemind)) : null}
+          onPickDue={() => setPicker({ kind: "due", item: null })}
+          onPickRemind={() => setPicker({ kind: "remind", item: null })}
+          onClearDue={() => setDraftDue(null)}
+          onClearRemind={() => setDraftRemind(null)}
+        />
+      )}
+    </View>
   );
 }
 
 const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
+  h1: { color: C.text, fontSize: 18, fontFamily: F.bold },
   wrap: { flex: 1, backgroundColor: C.bg, padding: 16, gap: 10, width: "100%", maxWidth: 560, alignSelf: "center" },
   row: { flexDirection: "row", gap: 8 },
   input: { backgroundColor: C.surface, color: C.text, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: F.regular, borderWidth: 1, borderColor: C.border },
@@ -331,7 +366,7 @@ const s = StyleSheet.create({
   filterText: { color: C.muted, fontSize: 12, fontFamily: F.medium },
   empty: { color: C.muted, fontSize: 14, fontFamily: F.regular, textAlign: "center", marginTop: 24 },
   // справа оставляем место под круглую кнопку-рыбку
-  toast: { position: "absolute", left: 16, right: 84, bottom: 20, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.text, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14 },
+  toast: { position: "absolute", left: 16, right: 84, bottom: PHONE ? 76 : 20, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.text, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14 },
   toastText: { flex: 1, color: C.bg, fontSize: 13, fontFamily: F.medium },
   toastAction: { color: C.accent, fontSize: 13, fontFamily: F.bold },
 });
