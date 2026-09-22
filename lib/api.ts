@@ -34,6 +34,13 @@ export async function setToken(t: string | null) {
   else await SecureStore.deleteItemAsync(KEY);
 }
 
+// status === 0 — до сервера не достучались вообще
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
 // FastAPI шлёт detail либо строкой (HTTPException), либо массивом ошибок
 // валидации pydantic — во втором случае собираем читаемый текст.
 function errorText(detail: unknown, status: number): string {
@@ -65,11 +72,11 @@ export async function api<T>(path: string, opts: { method?: string; body?: unkno
     });
   } catch {
     // сюда попадаем, когда сервер не поднят или телефон не в той сети
-    throw new Error(`Нет связи с сервером ${API}`);
+    throw new ApiError(`Нет связи с сервером ${API}`, 0);
   }
   if (!res.ok) {
     const d = await res.json().catch(() => null);
-    throw new Error(errorText(d?.detail, res.status));
+    throw new ApiError(errorText(d?.detail, res.status), res.status);
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }

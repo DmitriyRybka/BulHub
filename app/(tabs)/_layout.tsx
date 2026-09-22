@@ -1,5 +1,5 @@
 import { createMaterialTopTabNavigator } from "expo-router/js-top-tabs";
-import { withLayoutContext } from "expo-router";
+import { router, withLayoutContext } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, Pressable, StyleSheet } from "react-native";
 import { C, F } from "../../constants/ui";
@@ -24,6 +24,8 @@ export default function TabLayout() {
       >
         <TopTabs.Screen name="index" options={{
           title: "Дела",
+          // горизонтальный жест здесь занят свайпом задач — вкладки переключаются тапом
+          swipeEnabled: false,
           tabBarIcon: ({ color=C.accent }) => <Ionicons name="checkbox-outline" size={20} color={color} />,
         }} />
         <TopTabs.Screen name="calendar" options={{
@@ -36,9 +38,9 @@ export default function TabLayout() {
         }} />
       </TopTabs>
 
-      <View style={s.fabRow} pointerEvents="box-none">
-        <View style={s.fabCol} pointerEvents="box-none">
-          <Pressable style={s.fab}>
+      <View style={s.fabRow}>
+        <View style={s.fabCol}>
+          <Pressable style={s.fab} onPress={() => router.push("/profile")} accessibilityLabel="Профиль">
             <Ionicons name="fish-outline" size={28} color={C.onAccent} />
           </Pressable>
         </View>
@@ -50,8 +52,8 @@ export default function TabLayout() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   // держим кнопку у правого края колонки с содержимым, а не окна
-  fabRow: { position: "absolute", left: 0, right: 0, bottom: 90, alignItems: "center" },
-  fabCol: { width: "100%", maxWidth: 560, alignItems: "flex-end", paddingRight: 16 },
+  fabRow: { position: "absolute", left: 0, right: 0, bottom: 90, alignItems: "center", pointerEvents: "box-none" },
+  fabCol: { width: "100%", maxWidth: 560, alignItems: "flex-end", paddingRight: 16, pointerEvents: "box-none" },
   fab: {
     width: 52,
     height: 52,
