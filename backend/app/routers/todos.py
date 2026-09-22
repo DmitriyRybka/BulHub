@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from ..database import get_session
 from ..deps import get_current_user, get_list_role
-from ..models import User, TodoList, ListMember, TodoItem, Role
+from ..models import User, TodoList, ListMember, TodoItem, TodoStatus, Role
 from ..schemas import (
     TodoListCreate, TodoListOut, MemberAdd, MemberOut,
     TodoItemCreate, TodoItemUpdate, TodoItemOut,
@@ -127,8 +129,14 @@ def update_item(item_id: int, data: TodoItemUpdate,
     role = get_list_role(session, user, item.list_id)
     if role == Role.viewer:
         raise HTTPException(403, "Зритель не может менять задачи")
+    was_done = item.status == TodoStatus.done
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(item, key, value)
+    # момент выполнения нужен для статистики «сколько сделано в месяц»
+    if item.status == TodoStatus.done and not was_done:
+        item.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    elif item.status != TodoStatus.done:
+        item.completed_at = None
     session.add(item)
     session.commit()
     session.refresh(item)

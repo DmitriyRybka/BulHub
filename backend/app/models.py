@@ -126,5 +126,7 @@ class TodoItem(SQLModel, table=True):
     title: str
     status: TodoStatus = TodoStatus.todo
     due_date: Optional[date] = None
+    remind_at: Optional[datetime] = None  # когда напомнить, naive UTC
+    completed_at: Optional[datetime] = None  # когда перевели в done, naive UTC
     created_by: int = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

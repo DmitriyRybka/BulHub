@@ -1,7 +1,7 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from .models import Role, RecurFreq, CategoryKind, TodoStatus
 
@@ -176,15 +176,28 @@ class TodoListOut(BaseModel):
     my_role: Role
 
 
+def _naive_utc(v: Optional[datetime]) -> Optional[datetime]:
+    """Фронт шлёт ISO с 'Z', а в БД время хранится без пояса — как у событий."""
+    if v is not None and v.tzinfo is not None:
+        v = v.astimezone(timezone.utc).replace(tzinfo=None)
+    return v
+
+
 class TodoItemCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     due_date: Optional[date] = None
+    remind_at: Optional[datetime] = None
+
+    _remind_utc = field_validator("remind_at")(_naive_utc)
 
 
 class TodoItemUpdate(BaseModel):
     title: Optional[str] = None
     status: Optional[TodoStatus] = None
     due_date: Optional[date] = None
+    remind_at: Optional[datetime] = None
+
+    _remind_utc = field_validator("remind_at")(_naive_utc)
 
 
 class TodoItemOut(BaseModel):
@@ -193,4 +206,36 @@ class TodoItemOut(BaseModel):
     title: str
     status: TodoStatus
     due_date: Optional[date]
+    remind_at: Optional[datetime] = None
     created_by: int
+
+
+# ---------- Статистика ----------
+
+class MonthStat(BaseModel):
+    month: str        # "2026-09"
+    done: int
+    created: int
+
+
+class TaskStats(BaseModel):
+    total: int
+    done: int
+    active: int       # не выполненные: todo + doing
+    doing: int
+    overdue: int      # активные с дедлайном в прошлом
+    done_this_month: int
+    avg_done_per_month: float
+    best_month: Optional[MonthStat]
+    by_month: list[MonthStat]  # последние 6 месяцев, от старого к новому
+
+
+class EventStats(BaseModel):
+    total: int
+    this_month: int
+
+
+class StatsOut(BaseModel):
+    member_since: date
+    tasks: TaskStats
+    events: EventStats
