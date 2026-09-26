@@ -1,7 +1,10 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-const API = "http://192.168.0.112:8000"; // IP твоего ноутбука в Wi-Fi
+// Адрес бэкенда. В сборке APK подставляется из EXPO_PUBLIC_API_URL (eas.json) —
+// сервер в интернете; при разработке через Expo Go — бэкенд на ноуте в той же Wi-Fi.
+// EXPO_PUBLIC_* Expo вшивает в код при сборке, поэтому смена адреса = пересборка.
+const API = (process.env.EXPO_PUBLIC_API_URL ?? "http://192.168.0.112:8000").replace(/\/+$/, "");
 const KEY = "token";
 
 // expo-secure-store работает только на Android/iOS/tvOS — в вебе нативного
