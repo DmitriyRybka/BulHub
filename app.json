@@ -58,6 +58,12 @@
       "reactCompiler": true
     },
     "owner": "justfishka",
-    "backgroundColor": "#120e1c"
+    "backgroundColor": "#120e1c",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d5d547e7-1a6c-4e3b-acc2-a46edcaec308"
+      }
+    }
   }
 }
