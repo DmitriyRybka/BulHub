@@ -12,7 +12,16 @@ connect_args = {}
 if db_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
-engine = create_engine(db_url, echo=False, connect_args=connect_args)
+if ":6543/" in db_url:
+    connect_args["prepare_threshold"] = None
+
+engine = create_engine(
+    db_url,
+    echo=False,
+    connect_args=connect_args,
+    pool_pre_ping=True,   # проверять соединение перед каждым использованием
+    pool_recycle=300,     # пересоздавать соединения старше 5 минут
+)
 
 
 def init_db() -> None:
