@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import settings
 from .database import init_db
 from .migrations import migrate
 from .routers import auth, calendar, finance, stats, todos
@@ -19,7 +20,9 @@ app = FastAPI(title="Productivity Hub API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+):(5173|8081)",  # 5173 — веб на Vite, 8081 — Expo Web
+    allow_origins=settings.allowed_origins,  # веб-фронт в интернете (ALLOWED_ORIGINS)
+    # локальная разработка: 5173 — веб на Vite, 8081 — Expo Web
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+):(5173|8081)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,0 +1,22 @@
+# Render Blueprint: бэкенд Буль-Хаба на бесплатном тарифе.
+# Render → New → Blueprint → этот репозиторий. DATABASE_URL и ALLOWED_ORIGINS
+# спросит при создании, JWT_SECRET сгенерирует сам.
+services:
+  - name: bulhub-api
+    type: web
+    runtime: python
+    plan: free                 # засыпает через 15 мин без запросов, просыпается ~1 мин
+    region: frankfurt          # рядом с Supabase eu-central-1 (тоже Франкфурт)
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.3          # как локально; без неё версию выбирает Render
+      - key: DATABASE_URL      # Supabase → Connect → Session pooler (порт 5432)
+        sync: false
+      - key: JWT_SECRET        # подпись токенов входа; случайные 256 бит
+        generateValue: true
+      - key: ALLOWED_ORIGINS   # адрес веб-фронта на Vercel, через запятую
+        sync: false
