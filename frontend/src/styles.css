@@ -69,7 +69,7 @@ a { color: var(--violet); text-decoration: none; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 /* поле у кнопки в строке должно уметь сжиматься: у input минимальная ширина ~20 символов,
    в узкой карточке (260px) она выталкивала кнопку на следующую строку */
-.row > input, .row > select { min-width: 0; }
+.row > input { min-width: 0; }  /* select не трогаем: он обрезал бы подписи вроде «Зритель» */
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .muted { color: var(--ink-dim); font-size: 0.9rem; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
@@ -136,3 +136,24 @@ button:disabled { opacity: 0.5; cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* --- календарь: сетка месяца --- */
+.cal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.cal-title { flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cal-today { padding: 0 6px; font-size: 0.8rem; color: var(--violet); }
+.cal-nav { width: 36px; height: 36px; padding: 0; border-radius: 999px; font-size: 1.2rem; line-height: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-wd { text-align: center; font-size: 0.75rem; color: var(--ink-dim); padding: 4px 0; }
+.cal-wd.weekend, .cal-cell.weekend .cal-num { color: var(--coral); }
+.cal-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+  min-height: 52px; padding: 4px 0 2px; border-radius: 10px;
+  background: transparent; border: 1px solid transparent;
+}
+.cal-cell:hover { background: var(--water-2); filter: none; }
+.cal-cell.outside { opacity: 0.4; }
+.cal-num { width: 30px; height: 30px; line-height: 30px; text-align: center; border-radius: 999px; border: 1px solid transparent; }
+.cal-cell.today .cal-num { border-color: var(--violet); }
+.cal-cell.selected .cal-num { background: var(--violet); color: #14101f; font-weight: 600; border-color: var(--violet); }
+.cal-dots { display: flex; gap: 3px; height: 5px; }
+.cal-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--violet); display: block; }
