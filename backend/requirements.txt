@@ -1,9 +1,14 @@
-fastapi>=0.128
-uvicorn[standard]>=0.34
-sqlmodel>=0.0.39
-psycopg[binary]>=3.2.13
-argon2-cffi>=23.1.0
-PyJWT>=2.10
-pydantic-settings>=2.9
-python-dotenv>=1.1
-email-validator>=2.2
+# Версии зафиксированы: с «>=» Render ставил свежий sqlmodel, который требует
+# даты с часовым поясом, а код хранит naive UTC — регистрация падала с 500.
+# Обновлять осознанно, проверяя вход и регистрацию.
+fastapi==0.139.0
+uvicorn[standard]==0.50.0
+sqlmodel==0.0.39
+SQLAlchemy==2.0.51
+pydantic==2.13.4
+psycopg[binary]==3.3.4
+argon2-cffi==25.1.0
+PyJWT==2.13.0
+pydantic-settings==2.14.2
+python-dotenv==1.2.2
+email-validator==2.3.0
