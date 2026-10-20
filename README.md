@@ -46,8 +46,7 @@ hub/
 2. Project Settings → Database → Connection string → вкладка **URI**.
    Возьми строку **Session pooler** (порт 5432) — она выглядит как
    `postgresql://postgres.xxxx:[PASSWORD]@aws-0-...pooler.supabase.com:5432/postgres`.
-   postgresql://postgres.qyrybaornzluzpokkcbx:***REMOVED***@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
-3. Подставь свой пароль вместо `[PASSWORD]`. ***REMOVED***
+3. Подставь свой пароль вместо `[PASSWORD]`.
 
 > Хочешь без Supabase? Оставь `DATABASE_URL` пустым — бэкенд поднимется на
 > локальном SQLite (`dev.db`). Для разработки этого хватает.
