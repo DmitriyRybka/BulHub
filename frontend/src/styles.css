@@ -67,6 +67,9 @@ a { color: var(--violet); text-decoration: none; }
 }
 
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* поле у кнопки в строке должно уметь сжиматься: у input минимальная ширина ~20 символов,
+   в узкой карточке (260px) она выталкивала кнопку на следующую строку */
+.row > input, .row > select { min-width: 0; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .muted { color: var(--ink-dim); font-size: 0.9rem; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
