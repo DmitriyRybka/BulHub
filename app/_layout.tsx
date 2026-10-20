@@ -28,8 +28,6 @@ export default function RootLayout() {
 
   if (!loaded && !error) return null;
 
-  // GestureHandlerRootView — без него не работают свайпы задач;
-  // KeyboardProvider — клавиатура для шторки новой задачи (react-native-keyboard-controller)
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
